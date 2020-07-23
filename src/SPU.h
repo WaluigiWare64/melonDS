@@ -69,7 +69,6 @@ public:
     u8 VolumeShift;
     u8 Pan;
 
-    bool KeyOn;
     u32 Timer;
     s32 Pos;
     s16 CurSample;
@@ -106,7 +105,7 @@ public:
 
         if ((val & (1<<31)) && !(oldcnt & (1<<31)))
         {
-            KeyOn = true;
+            Start();
         }
     }
 
