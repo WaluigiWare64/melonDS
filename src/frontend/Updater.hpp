@@ -102,3 +102,4 @@ int checkForUpdates(std::string currentVer)
         return 1;
     }
 }
+}
