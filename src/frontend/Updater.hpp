@@ -88,7 +88,7 @@ int checkForUpdates(std::string currentVer)
         if (obj["name"] == platform) 
         {
             latestArtifact = obj["archive_download_url"];
-	    latestArtifactVer = obj["url"];
+	        latestArtifactVer = obj["url"];
             latestArtifactVer = latestArtifactVer.substr(latestArtifactVer.find_last_of("/")+1);
         }
     }
@@ -101,5 +101,9 @@ int checkForUpdates(std::string currentVer)
     getCURL(latestArtifact.c_str(), "dummy_key", true);
         return 1;
     }
+}
+int installUpdate()
+{
+    //todo
 }
 }
