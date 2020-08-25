@@ -64,6 +64,8 @@
 #include "FrontendUtil.h"
 #include "OSD.h"
 
+#include "Updater.hpp"
+
 #include "NDS.h"
 #include "GBACart.h"
 #include "GPU.h"
@@ -1489,6 +1491,10 @@ MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent)
         actAudioSync = menu->addAction("Audio sync");
         actAudioSync->setCheckable(true);
         connect(actAudioSync, &QAction::triggered, this, &MainWindow::onChangeAudioSync);
+		
+        menu->addSeparator();
+	    actEmuSettings = menu->addAction("Check for updates");
+        connect(actEmuSettings, &QAction::triggered, this, &MainWindow::onCheckForUpdates);
     }
     setMenuBar(menubar);
 
@@ -2490,6 +2496,21 @@ void MainWindow::onChangeAudioSync(bool checked)
     Config::AudioSync = checked?1:0;
 }
 
+void MainWindow::onCheckForUpdates()
+{
+    emuThread->emuPause();
+    int updateCheck = Updater::checkForUpdates("dummy ver");
+    if (!updateCheck)
+    {
+        QMessageBox::information(this, "melonDS", "You are already on the latest version.");
+        emuThread->emuUnpause();
+    }
+    else 
+    {
+        Updater::installUpdate()
+    }
+    emuThread->emuUnpause();
+}
 
 void MainWindow::onTitleUpdate(QString title)
 {
