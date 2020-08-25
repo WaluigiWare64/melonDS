@@ -2507,7 +2507,7 @@ void MainWindow::onCheckForUpdates()
     }
     else 
     {
-        Updater::installUpdate()
+        Updater::installUpdate();
     }
     emuThread->emuUnpause();
 }
