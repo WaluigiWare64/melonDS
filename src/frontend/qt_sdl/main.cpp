@@ -2500,7 +2500,7 @@ void MainWindow::onCheckForUpdates()
 {
     emuThread->emuPause();
     QString githubKey = QInputDialog::getText(this, "melonDS", "Enter your GitHub Personal Access Token. It needs to have the 'public_repo' scope.");
-    int updateCheck = Updater::checkForUpdates("dummy ver", githubKey.toStdString());
+    int updateCheck = Updater::checkForUpdates("1", githubKey.toStdString().c_str()); //1 is just a dummy version
     if (!updateCheck)
     {
         QMessageBox::information(this, "melonDS", "You are already on the latest version.");
@@ -2509,7 +2509,7 @@ void MainWindow::onCheckForUpdates()
     {
         if (QMessageBox::question(this, "melonDS", 
             "An update is available. Do you want to install it now?", 
-            QMessageBox::Yes|QMessageBox::No) == QMessageBox:Yes)
+            QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes)
         {
             Updater::installUpdate();
         }
