@@ -31,7 +31,7 @@ size_t write_data(void *ptr, size_t size, size_t nmemb, FILE *stream) {
     size_t written = fwrite(ptr, size, nmemb, stream);
     return written;
 }
-std::string getCURL(const char* webURL, const char* authFlag="", bool fwrite=false) 
+std::string getCURL(const char* webURL, const char* authFlag="", bool fwrite=false, const char* fname="") 
 {
     CURL *curl;
     CURLcode res;
@@ -47,9 +47,9 @@ std::string getCURL(const char* webURL, const char* authFlag="", bool fwrite=fal
         curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 	
         curl_easy_setopt(curl, CURLOPT_PASSWORD, authFlag);
-	if (fwrite)
-	{
-            fp = fopen("melonDS.zip","wb");
+	    if (fwrite)
+	    {
+            fp = fopen(fname,"wb");
             curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
             curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
         } 
@@ -62,26 +62,26 @@ std::string getCURL(const char* webURL, const char* authFlag="", bool fwrite=fal
     
         res = curl_easy_perform(curl);
         if (res != CURLE_OK)
-	{
+	    {
             return "cURL Error.";
-	}
-	curl_easy_cleanup(curl);
-	if (fwrite) {fclose(fp); return "";} else {return readBuffer;}
+	    }
+	    curl_easy_cleanup(curl);
+	    if (fwrite) {fclose(fp); return "";} else {return readBuffer;}
     
      }
 }
-int checkForUpdates(std::string currentVer)
+int checkForUpdates(std::string currentVer, const char* authFlag)
 {
     #if defined(_WIN32)
         const char* platform = "melonDS-win-x86_64";
     #elif defined(__linux__) && !defined(__aarch64__)
-	const char* platform = "melonDS-ubuntu-x86_64";
+	    const char* platform = "melonDS-ubuntu-x86_64";
     #elif defined(__linux__) && defined(__aarch64__)
-	const char* platform = "melonDS-ubuntu-aarch64";	
+	    const char* platform = "melonDS-ubuntu-aarch64";	
     #endif
 	
     std::string latestArtifact, latestArtifactVer;
-    json jsonArtifact = json::parse(getCURL("https://api.github.com/repos/Arisotura/melonDS/actions/artifacts"));
+    json jsonArtifact = json::parse(getCURL("https://api.github.com/repos/Arisotura/melonDS/actions/artifacts", authFlag));
   
     for (const auto& obj : jsonArtifact["artifacts"]) 
     {
@@ -98,7 +98,7 @@ int checkForUpdates(std::string currentVer)
     }
     else
     {
-    getCURL(latestArtifact.c_str(), "dummy_key", true);
+    getCURL(latestArtifact.c_str(), authFlag, true, "melonDS.zip");
         return 1;
     }
 }

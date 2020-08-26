@@ -2499,15 +2499,20 @@ void MainWindow::onChangeAudioSync(bool checked)
 void MainWindow::onCheckForUpdates()
 {
     emuThread->emuPause();
-    int updateCheck = Updater::checkForUpdates("dummy ver");
+    QString githubKey = QInputDialog::getText(this, "melonDS", "Enter your GitHub Personal Access Token. It needs to have the 'public_repo' scope.");
+    int updateCheck = Updater::checkForUpdates("dummy ver", githubKey.toStdString());
     if (!updateCheck)
     {
         QMessageBox::information(this, "melonDS", "You are already on the latest version.");
-        emuThread->emuUnpause();
     }
     else 
     {
-        Updater::installUpdate();
+        if (QMessageBox::question(this, "melonDS", 
+            "An update is available. Do you want to install it now?", 
+            QMessageBox::Yes|QMessageBox::No) == QMessageBox:Yes)
+        {
+            Updater::installUpdate();
+        }
     }
     emuThread->emuUnpause();
 }
