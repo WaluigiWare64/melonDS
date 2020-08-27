@@ -2500,15 +2500,19 @@ void MainWindow::onCheckForUpdates()
 {
     emuThread->emuPause();
     QString githubKey = QInputDialog::getText(this, "melonDS", "Enter your GitHub Personal Access Token. It needs to have the 'public_repo' scope.");
-    int updateCheck = Updater::checkForUpdates("1", githubKey.toStdString().c_str()); //1 is just a dummy version
-    if (!updateCheck)
+    std::vector<std::string> updateCheck = Updater::checkForUpdates("1", githubKey.toStdString().c_str()); //1 is just a dummy version
+    if (updateCheck[0] == "Err")
     {
-        QMessageBox::information(this, "melonDS", "You are already on the latest version.");
+        QMessageBox::critical(this, "melonDS", QString::fromStdString(std::string(updateCheck[1])));
     }
-    else 
+    else if (updateCheck[0] == "N")
+    {
+        QMessageBox::information(this, "melonDS", "You are already on the latest version");
+    }
+    else if (updateCheck[0] == "Y")
     {
         if (QMessageBox::question(this, "melonDS", 
-            "An update is available. Do you want to install it now?", 
+            QString::fromStdString("An update is available. The commit message is " + updateCheck[1] + " Do you want to install it now?"), 
             QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes)
         {
             Updater::installUpdate();
