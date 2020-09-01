@@ -45,7 +45,7 @@ namespace Updater
         if(curl) 
         {
             curl_easy_setopt(curl, CURLOPT_URL, webURL.c_str());
-            curl_easy_setopt(curl, CURLOPT_USERAGENT, "curl/7.77.1");
+            curl_easy_setopt(curl, CURLOPT_USERAGENT, (std::string("curl/") + curl_version_info_data(*curl_version_info(CURLVERSION_NOW)).version).c_str());
             curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
             curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
             curl_easy_setopt(curl, CURLOPT_PASSWORD, authFlag);
