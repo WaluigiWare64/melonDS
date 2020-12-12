@@ -214,6 +214,8 @@ private slots:
     void onAudioSettingsFinished(int res);
     void onOpenWifiSettings();
     void onWifiSettingsFinished(int res);
+    void onOpenLogSettings();
+    void onLogSettingsFinished(int res);
     void onChangeSavestateSRAMReloc(bool checked);
     void onChangeScreenSize();
     void onChangeScreenRotation(QAction* act);
@@ -262,6 +264,8 @@ public:
     QAction* actVideoSettings;
     QAction* actAudioSettings;
     QAction* actWifiSettings;
+    QAction* actLogSettings;
+
     QAction* actSavestateSRAMReloc;
     QAction* actScreenSize[4];
     QActionGroup* grpScreenRotation;

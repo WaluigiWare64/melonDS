@@ -26,6 +26,7 @@
 #include "../Wifi.h"
 #include "LAN_PCap.h"
 #include "PlatformConfig.h"
+#include "Platform.h"
 
 #ifdef __WIN32__
 	#include <iphlpapi.h>
@@ -129,14 +130,14 @@ bool Init(bool open_adapter)
                 continue;
             }
 
-            printf("PCap: lib %s, init successful\n", PCapLibNames[i]);
+            Platform::LogMessage("PCap: lib %s, init successful\n", PCapLibNames[i]);
             PCapLib = lib;
             break;
         }
 
         if (PCapLib == NULL)
         {
-            printf("PCap: init failed\n");
+            Platform::LogMessage("PCap: init failed\n");
             return false;
         }
     }
@@ -154,7 +155,7 @@ bool Init(bool open_adapter)
     ret = pcap_findalldevs(&alldevs, errbuf);
     if (ret < 0 || alldevs == NULL)
     {
-        printf("PCap: no devices available\n");
+        Platform::LogMessage("PCap: no devices available\n");
         return false;
     }
 
@@ -201,7 +202,7 @@ bool Init(bool open_adapter)
     }
     if (uret != ERROR_SUCCESS)
     {
-        printf("GetAdaptersAddresses() shat itself: %08X\n", uret);
+        Platform::LogMessage("GetAdaptersAddresses() shat itself: %08X\n", uret);
         return false;
     }
 
@@ -225,7 +226,7 @@ bool Init(bool open_adapter)
 
             if (addr->PhysicalAddressLength != 6)
             {
-                printf("weird MAC addr length %d for %s\n", addr->PhysicalAddressLength, addr->AdapterName);
+                Platform::LogMessage("weird MAC addr length %d for %s\n", addr->PhysicalAddressLength, addr->AdapterName);
             }
             else
                 memcpy(adata->MAC, addr->PhysicalAddress, 6);
@@ -254,7 +255,7 @@ bool Init(bool open_adapter)
     struct ifaddrs* addrs;
     if (getifaddrs(&addrs) != 0)
     {
-        printf("getifaddrs() shat itself :(\n");
+        Platform::LogMessage("getifaddrs() shat itself :(\n");
         return false;
     }
 
@@ -272,7 +273,7 @@ bool Init(bool open_adapter)
 
             if (!curaddr->ifa_addr)
             {
-                printf("Device (%s) does not have an address :/\n", curaddr->ifa_name);
+                Platform::LogMessage("Device (%s) does not have an address :/\n", curaddr->ifa_name);
                 curaddr = curaddr->ifa_next;
                 continue;
             }
@@ -288,7 +289,7 @@ bool Init(bool open_adapter)
             {
                 struct sockaddr_ll* sa = (sockaddr_ll*)curaddr->ifa_addr;
                 if (sa->sll_halen != 6)
-                    printf("weird MAC length %d for %s\n", sa->sll_halen, curaddr->ifa_name);
+                    Platform::LogMessage("weird MAC length %d for %s\n", sa->sll_halen, curaddr->ifa_name);
                 else
                     memcpy(adata->MAC, sa->sll_addr, 6);
             }
@@ -297,7 +298,7 @@ bool Init(bool open_adapter)
             {
                 struct sockaddr_dl* sa = (sockaddr_dl*)curaddr->ifa_addr;
                 if (sa->sdl_alen != 6)
-                    printf("weird MAC length %d for %s\n", sa->sdl_alen, curaddr->ifa_name);
+                    Platform::LogMessage("weird MAC length %d for %s\n", sa->sdl_alen, curaddr->ifa_name);
                 else
                     memcpy(adata->MAC, LLADDR(sa), 6);
             }
@@ -325,7 +326,7 @@ bool Init(bool open_adapter)
     PCapAdapter = pcap_open_live(dev->name, 2048, PCAP_OPENFLAG_PROMISCUOUS, 1, errbuf);
     if (!PCapAdapter)
     {
-        printf("PCap: failed to open adapter %s\n", errbuf);
+        Platform::LogMessage("PCap: failed to open adapter %s\n", errbuf);
         return false;
     }
 
@@ -333,7 +334,7 @@ bool Init(bool open_adapter)
 
     if (pcap_setnonblock(PCapAdapter, 1, errbuf) < 0)
     {
-        printf("PCap: failed to set nonblocking mode\n");
+        Platform::LogMessage("PCap: failed to set nonblocking mode\n");
         pcap_close(PCapAdapter); PCapAdapter = NULL;
         return false;
     }
@@ -375,7 +376,7 @@ int SendPacket(u8* data, int len)
 
     if (len > 2048)
     {
-        printf("LAN_SendPacket: error: packet too long (%d)\n", len);
+        Platform::LogMessage("LAN_SendPacket: error: packet too long (%d)\n", len);
         return 0;
     }
 
