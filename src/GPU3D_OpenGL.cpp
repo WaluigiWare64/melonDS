@@ -53,23 +53,24 @@ GLuint CurShaderID = -1;
 GLuint FinalPassEdgeShader[3];
 GLuint FinalPassFogShader[3];
 
+// std140 compliant structure
 struct
 {
-    float uScreenSize[2];
-    u32 uDispCnt;
+    float uScreenSize[2];       // vec2       0 / 2
+    u32 uDispCnt;               // int        2 / 1
     u32 __pad0;
-    float uToonColors[32][4];
-    float uEdgeColors[8][4];
-    float uFogColor[4];
-    float uFogDensity[34][4];
-    u32 uFogOffset;
-    u32 uFogShift;
+    float uToonColors[32][4];   // vec4[32]   4 / 128
+    float uEdgeColors[8][4];    // vec4[8]    132 / 32
+    float uFogColor[4];         // vec4       164 / 4
+    float uFogDensity[34][4];   // float[34]  168 / 136
+    u32 uFogOffset;             // int        304 / 1
+    u32 uFogShift;              // int        305 / 1
 
 } ShaderConfig;
 
 GLuint ShaderConfigUBO;
 
-typedef struct
+struct RendererPolygon
 {
     Polygon* PolyData;
 
@@ -81,8 +82,7 @@ typedef struct
     u32 EdgeIndicesOffset;
 
     u32 RenderKey;
-
-} RendererPolygon;
+};
 
 RendererPolygon PolygonList[2048];
 int NumFinalPolys, NumOpaqueFinalPolys;
@@ -284,7 +284,7 @@ bool Init()
 
     glGenBuffers(1, &ShaderConfigUBO);
     glBindBuffer(GL_UNIFORM_BUFFER, ShaderConfigUBO);
-    glBufferData(GL_UNIFORM_BUFFER, sizeof(ShaderConfig), &ShaderConfig, GL_STATIC_DRAW);
+    glBufferData(GL_UNIFORM_BUFFER, (sizeof(ShaderConfig) + 15) & ~15, &ShaderConfig, GL_STATIC_DRAW);
     glBindBufferBase(GL_UNIFORM_BUFFER, 0, ShaderConfigUBO);
 
 
@@ -787,11 +787,13 @@ void BuildPolygons(RendererPolygon* polygons, int npolys)
     NumEdgeIndices = eidx - EdgeIndicesOffset;
 }
 
-void RenderSinglePolygon(int i)
+int RenderSinglePolygon(int i)
 {
     RendererPolygon* rp = &PolygonList[i];
 
     glDrawElements(rp->PrimType, rp->NumIndices, GL_UNSIGNED_SHORT, (void*)(uintptr_t)(rp->IndicesOffset * 2));
+
+    return 1;
 }
 
 int RenderPolygonBatch(int i)
@@ -866,6 +868,7 @@ void RenderSceneChunk(int y, int h)
         RendererPolygon* rp = &PolygonList[i];
 
         if (rp->PolyData->IsShadowMask) { i++; continue; }
+        if (rp->PolyData->Translucent) { i++; continue; }
 
         if (rp->PolyData->Attr & (1<<14))
             glDepthFunc(GL_LEQUAL);
@@ -883,7 +886,8 @@ void RenderSceneChunk(int y, int h)
     }
 
     // if edge marking is enabled, mark all opaque edges
-    if (RenderDispCnt & (1<<5))
+    // TODO BETTER EDGE MARKING!!! THIS SUCKS
+    /*if (RenderDispCnt & (1<<5))
     {
         UseRenderShader(flags | RenderFlag_Edge);
         glLineWidth(1.5);
@@ -908,7 +912,7 @@ void RenderSceneChunk(int y, int h)
         }
 
         glDepthMask(GL_TRUE);
-    }
+    }*/
 
     glEnable(GL_BLEND);
     glBlendEquationSeparate(GL_FUNC_ADD, GL_MAX);
@@ -953,15 +957,32 @@ void RenderSceneChunk(int y, int h)
                 }
                 else if (rp->PolyData->Translucent)
                 {
-                    UseRenderShader(flags | RenderFlag_Trans);
+                    bool needopaque = ((rp->PolyData->Attr & 0x001F0000) == 0x001F0000);
 
-                    if (rp->PolyData->Attr & (1<<14))
+                    u32 polyattr = rp->PolyData->Attr;
+                    u32 polyid = (polyattr >> 24) & 0x3F;
+
+                    if (polyattr & (1<<14))
                         glDepthFunc(GL_LEQUAL);
                     else
                         glDepthFunc(GL_LESS);
 
-                    u32 polyattr = rp->PolyData->Attr;
-                    u32 polyid = (polyattr >> 24) & 0x3F;
+                    if (needopaque)
+                    {
+                        UseRenderShader(flags);
+
+                        glDisable(GL_BLEND);
+                        glColorMaski(0, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+                        glColorMaski(1, GL_TRUE, GL_TRUE, fogenable, GL_FALSE);
+
+                        glStencilFunc(GL_ALWAYS, polyid, 0xFF);
+                        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+                        glStencilMask(0xFF);
+
+                        RenderSinglePolygon(i);
+                    }
+
+                    UseRenderShader(flags | RenderFlag_Trans);
 
                     GLboolean transfog;
                     if (!(polyattr & (1<<15))) transfog = fogenable;
@@ -984,7 +1005,7 @@ void RenderSceneChunk(int y, int h)
                         if (polyattr & (1<<11)) glDepthMask(GL_TRUE);
                         else                    glDepthMask(GL_FALSE);
 
-                        i += RenderPolygonBatch(i);
+                        i += needopaque ? RenderSinglePolygon(i) : RenderPolygonBatch(i);
                     }
                     else
                     {
@@ -998,7 +1019,7 @@ void RenderSceneChunk(int y, int h)
                         if (polyattr & (1<<11)) glDepthMask(GL_TRUE);
                         else                    glDepthMask(GL_FALSE);
 
-                        i += RenderPolygonBatch(i);
+                        i += needopaque ? RenderSinglePolygon(i) : RenderPolygonBatch(i);
                     }
                 }
                 else
@@ -1039,19 +1060,36 @@ void RenderSceneChunk(int y, int h)
             }
             else if (rp->PolyData->Translucent)
             {
-                UseRenderShader(flags | RenderFlag_Trans);
+                bool needopaque = ((rp->PolyData->Attr & 0x001F0000) == 0x001F0000);
 
                 u32 polyattr = rp->PolyData->Attr;
                 u32 polyid = (polyattr >> 24) & 0x3F;
 
-                GLboolean transfog;
-                if (!(polyattr & (1<<15))) transfog = fogenable;
-                else                       transfog = GL_FALSE;
-
-                if (rp->PolyData->Attr & (1<<14))
+                if (polyattr & (1<<14))
                     glDepthFunc(GL_LEQUAL);
                 else
                     glDepthFunc(GL_LESS);
+
+                if (needopaque)
+                {
+                    UseRenderShader(flags);
+
+                    glDisable(GL_BLEND);
+                    glColorMaski(0, GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+                    glColorMaski(1, GL_TRUE, GL_TRUE, fogenable, GL_FALSE);
+
+                    glStencilFunc(GL_ALWAYS, polyid, 0xFF);
+                    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+                    glStencilMask(0xFF);
+
+                    RenderSinglePolygon(i);
+                }
+
+                UseRenderShader(flags | RenderFlag_Trans);
+
+                GLboolean transfog;
+                if (!(polyattr & (1<<15))) transfog = fogenable;
+                else                       transfog = GL_FALSE;
 
                 if (rp->PolyData->IsShadow)
                 {
@@ -1076,8 +1114,7 @@ void RenderSceneChunk(int y, int h)
                     if (polyattr & (1<<11)) glDepthMask(GL_TRUE);
                     else                    glDepthMask(GL_FALSE);
 
-                    RenderSinglePolygon(i);
-                    i++;
+                    i += RenderSinglePolygon(i);
                 }
                 else
                 {
@@ -1092,7 +1129,7 @@ void RenderSceneChunk(int y, int h)
                     if (polyattr & (1<<11)) glDepthMask(GL_TRUE);
                     else                    glDepthMask(GL_FALSE);
 
-                    i += RenderPolygonBatch(i);
+                    i += needopaque ? RenderSinglePolygon(i) : RenderPolygonBatch(i);
                 }
             }
             else

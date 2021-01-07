@@ -80,7 +80,6 @@ extern NonStupidBitField<512*1024/VRAMDirtyGranularity> VRAMWritten_ABG;
 extern NonStupidBitField<256*1024/VRAMDirtyGranularity> VRAMWritten_AOBJ;
 extern NonStupidBitField<128*1024/VRAMDirtyGranularity> VRAMWritten_BBG;
 extern NonStupidBitField<128*1024/VRAMDirtyGranularity> VRAMWritten_BOBJ;
-extern NonStupidBitField<256*1024/VRAMDirtyGranularity> VRAMWritten_ARM7;
 
 extern NonStupidBitField<128*1024/VRAMDirtyGranularity> VRAMDirty[9];
 
@@ -147,14 +146,16 @@ bool MakeVRAMFlat_TexPalCoherent(NonStupidBitField<128*1024/VRAMDirtyGranularity
 
 void SyncDirtyFlags();
 
-typedef struct
+extern u32 OAMDirty;
+extern u32 PaletteDirty;
+
+struct RenderSettings
 {
     bool Soft_Threaded;
 
     int GL_ScaleFactor;
     bool GL_BetterPolygons;
-
-} RenderSettings;
+};
 
 
 bool Init();
@@ -456,8 +457,6 @@ void WriteVRAM_ARM7(u32 addr, T val)
 {
     u32 mask = VRAMMap_ARM7[(addr >> 17) & 0x1];
 
-    VRAMWritten_ARM7[(addr & 0x1FFFF) / VRAMDirtyGranularity] = true;
-
     if (mask & (1<<2)) *(T*)&VRAM_C[addr & 0x1FFFF] = val;
     if (mask & (1<<3)) *(T*)&VRAM_D[addr & 0x1FFFF] = val;
 }
@@ -509,6 +508,35 @@ T ReadVRAM_TexPal(u32 addr)
     return ret;
 }
 
+template<typename T>
+T ReadPalette(u32 addr)
+{
+    return *(T*)&Palette[addr & 0x7FF];
+}
+
+template<typename T>
+void WritePalette(u32 addr, T val)
+{
+    addr &= 0x7FF;
+
+    *(T*)&Palette[addr] = val;
+    PaletteDirty |= 1 << (addr / VRAMDirtyGranularity);
+}
+
+template<typename T>
+T ReadOAM(u32 addr)
+{
+    return *(T*)&OAM[addr & 0x7FF];
+}
+
+template<typename T>
+void WriteOAM(u32 addr, T val)
+{
+    addr &= 0x7FF;
+
+    *(T*)&OAM[addr] = val;
+    OAMDirty |= 1 << (addr / 1024);
+}
 
 void SetPowerCnt(u32 val);
 
